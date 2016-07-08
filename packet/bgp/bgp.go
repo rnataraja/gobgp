@@ -127,6 +127,7 @@ const (
 	EC_SUBTYPE_MAC_MOBILITY ExtendedCommunityAttrSubType = 0x00 // EC_TYPE: 0x06
 	EC_SUBTYPE_ESI_LABEL    ExtendedCommunityAttrSubType = 0x01 // EC_TYPE: 0x06
 	EC_SUBTYPE_ES_IMPORT    ExtendedCommunityAttrSubType = 0x02 // EC_TYPE: 0x06
+	EC_SUBTYPE_ROUTER_MAC 	ExtendedCommunityAttrSubType = 0x03 // EC_TYPE: 0x06
 
 	EC_SUBTYPE_UUID_BASED_RT ExtendedCommunityAttrSubType = 0x11
 )
@@ -1652,6 +1653,120 @@ func (er *EVPNEthernetAutoDiscoveryRoute) rd() RouteDistinguisherInterface {
 	return er.RD
 }
 
+type EVPNIPPrefixRoute struct {
+	RD               RouteDistinguisherInterface
+	ESI              EthernetSegmentIdentifier
+	ETag             uint32
+	MacAddressLength uint8
+	MacAddress       net.HardwareAddr
+	IPAddressLength  uint8
+	IPAddress        net.IP
+	Labels           []uint32
+}
+
+func (er *EVPNIPPrefixRoute)  DecodeFromBytes (data []byte) error {
+	er.RD = GetRouteDistinguisher(data)
+	data = data[er.RD.Len():]
+	err := er.ESI.DecodeFromBytes(data)
+	if err != nil {
+		return err
+	}
+	data = data[10:]
+	er.ETag = binary.BigEndian.Uint32(data[0:4])
+	data = data[4:]
+	er.MacAddressLength = data[0]
+	er.MacAddress = net.HardwareAddr(data[1:7])
+	er.IPAddressLength = data[7]
+	data = data[8:]
+	if er.IPAddressLength == 32 || er.IPAddressLength == 128 {
+		er.IPAddress = net.IP(data[0:((er.IPAddressLength) / 8)])
+	} else if er.IPAddressLength != 0 {
+		return NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST, nil, fmt.Sprintf("Invalid IP address length: %d", er.IPAddressLength))
+	}
+	data = data[(er.IPAddressLength / 8):]
+	label1 := labelDecode(data)
+	er.Labels = append(er.Labels, label1)
+	data = data[3:]
+	if len(data) == 3 {
+		label2 := labelDecode(data)
+		er.Labels = append(er.Labels, label2)
+
+	}
+	return nil
+}
+
+func (er *EVPNIPPrefixRoute) Serialize() ([]byte, error) {
+	var buf []byte
+	var err error
+	if er.RD != nil {
+		buf, err = er.RD.Serialize()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		buf = make([]byte, 8)
+	}
+
+	tbuf, err := er.ESI.Serialize()
+	if err != nil {
+		return nil, err
+	}
+
+	buf = append(buf, tbuf...)
+	tbuf = make([]byte, 4)
+	binary.BigEndian.PutUint32(tbuf, er.ETag)
+	buf = append(buf, tbuf...)
+	tbuf = make([]byte, 7)
+	tbuf[0] = er.MacAddressLength
+	copy(tbuf[1:], er.MacAddress)
+	buf = append(buf, tbuf...)
+
+	if er.IPAddressLength == 0 {
+		buf = append(buf, 0)
+	} else if er.IPAddressLength == 32 || er.IPAddressLength == 128 {
+		buf = append(buf, er.IPAddressLength)
+		if er.IPAddressLength == 32 {
+			er.IPAddress = er.IPAddress.To4()
+		}
+		buf = append(buf, []byte(er.IPAddress)...)
+	} else {
+		return nil, NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST, nil, fmt.Sprintf("Invalid IP address length: %d", er.IPAddressLength))
+	}
+
+	for _, l := range er.Labels {
+		tbuf = make([]byte, 3)
+		labelSerialize(l, tbuf)
+		buf = append(buf, tbuf...)
+	}
+	return buf, nil
+}
+
+func (er *EVPNIPPrefixRoute) String() string {
+	return fmt.Sprintf("[type:macadv][rd:%s][esi:%s][etag:%d][mac:%s][ip:%s][labels:%v]", er.RD, er.ESI.String(), er.ETag, er.MacAddress, er.IPAddress, er.Labels)
+}
+
+func (er *EVPNIPPrefixRoute) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		RD         RouteDistinguisherInterface `json:"rd"`
+		ESI        string                      `json:"esi"`
+		Etag       uint32                      `json:"etag"`
+		MacAddress string                      `json:"mac"`
+		IPAddress  string                      `json:"ip"`
+		Labels     []uint32                    `json:"labels"`
+	}{
+		RD:         er.RD,
+		ESI:        er.ESI.String(),
+		Etag:       er.ETag,
+		MacAddress: er.MacAddress.String(),
+		IPAddress:  er.IPAddress.String(),
+		Labels:     er.Labels,
+	})
+}
+
+func (er *EVPNIPPrefixRoute) rd() RouteDistinguisherInterface {
+	return er.RD
+}
+
 type EVPNMacIPAdvertisementRoute struct {
 	RD               RouteDistinguisherInterface
 	ESI              EthernetSegmentIdentifier
@@ -1836,6 +1951,10 @@ func (er *EVPNMulticastEthernetTagRoute) rd() RouteDistinguisherInterface {
 	return er.RD
 }
 
+type EVPNEthernetIPPrefixRoute struct {
+
+}
+
 type EVPNEthernetSegmentRoute struct {
 	RD              RouteDistinguisherInterface
 	ESI             EthernetSegmentIdentifier
@@ -1924,6 +2043,8 @@ func getEVPNRouteType(t uint8) (EVPNRouteTypeInterface, error) {
 		return &EVPNMulticastEthernetTagRoute{}, nil
 	case EVPN_ETHERNET_SEGMENT_ROUTE:
 		return &EVPNEthernetSegmentRoute{}, nil
+	case EVPN_ROUTE_TYPE_IP_PREFIX:
+		return &EVPNIPPrefixRoute{}, nil
 	}
 	return nil, NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST, nil, fmt.Sprintf("Unknown EVPN Route type: %d", t))
 }
@@ -1933,6 +2054,7 @@ const (
 	EVPN_ROUTE_TYPE_MAC_IP_ADVERTISEMENT    = 2
 	EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG   = 3
 	EVPN_ETHERNET_SEGMENT_ROUTE             = 4
+	EVPN_ROUTE_TYPE_IP_PREFIX 		= 5
 )
 
 type EVPNNLRI struct {
@@ -5534,6 +5656,7 @@ type MacMobilityExtended struct {
 	IsSticky bool
 }
 
+
 func (e *MacMobilityExtended) Serialize() ([]byte, error) {
 	buf := make([]byte, 8)
 	buf[0] = byte(EC_TYPE_EVPN)
@@ -5580,6 +5703,44 @@ func NewMacMobilityExtended(seq uint32, isSticky bool) *MacMobilityExtended {
 	}
 }
 
+
+type RouterMacExtended struct {
+	MacAddress       net.HardwareAddr
+}
+
+func (e *RouterMacExtended) Serialize() ([]byte, error) {
+	buf := make([]byte, 8)
+	buf[0] = byte(EC_TYPE_EVPN)
+	buf[1] = byte(EC_SUBTYPE_ROUTER_MAC)
+	copy(buf[2:], e.MacAddress)
+	return buf, nil
+}
+
+func (e *RouterMacExtended) String() string {
+	buf := bytes.NewBuffer(make([]byte, 0, 32))
+	buf.WriteString(fmt.Sprintf("Router MAC: TBD"))
+	return buf.String()
+}
+
+func (e *RouterMacExtended) GetTypes() (ExtendedCommunityAttrType, ExtendedCommunityAttrSubType) {
+	return EC_TYPE_EVPN, EC_SUBTYPE_ROUTER_MAC 
+}
+
+func (e *RouterMacExtended) MarshalJSON() ([]byte, error) {
+	t, s := e.GetTypes()
+	return json.Marshal(struct {
+		Type     ExtendedCommunityAttrType    `json:"type"`
+		Subtype  ExtendedCommunityAttrSubType `json:"subtype"`
+
+		MacAddress net.HardwareAddr	      `json:"macAddress"`
+	}{
+		Type:     t,
+		Subtype:  s,
+		MacAddress: e.MacAddress,
+	})
+}
+
+
 func parseEvpnExtended(data []byte) (ExtendedCommunityInterface, error) {
 	if ExtendedCommunityAttrType(data[0]) != EC_TYPE_EVPN {
 		return nil, NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST, nil, fmt.Sprintf("ext comm type is not EC_TYPE_EVPN: %d", data[0]))
@@ -5609,6 +5770,11 @@ func parseEvpnExtended(data []byte) (ExtendedCommunityInterface, error) {
 		return &MacMobilityExtended{
 			Sequence: seq,
 			IsSticky: isSticky,
+		}, nil
+	case EC_SUBTYPE_ROUTER_MAC:
+		mac := net.HardwareAddr(data[2:8])
+		return &RouterMacExtended{
+		 	MacAddress: mac,
 		}, nil
 	}
 	return nil, NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST, nil, fmt.Sprintf("unknown evpn subtype: %d", subType))
@@ -7116,6 +7282,11 @@ func (e *ESImportRouteTarget) Flat() map[string]string {
 }
 
 func (e *MacMobilityExtended) Flat() map[string]string {
+	return map[string]string{}
+}
+
+
+func (e *RouterMacExtended) Flat() map[string]string {
 	return map[string]string{}
 }
 

@@ -416,7 +416,7 @@ func (v vrfs) Less(i, j int) bool {
 
 func connGrpc() *grpc.ClientConn {
 	timeout := grpc.WithTimeout(time.Second)
-	target := net.JoinHostPort(globalOpts.Host, strconv.Itoa(globalOpts.Port))
+	target := net.JoinHostPort("localhost", strconv.Itoa(globalOpts.Port))
 	conn, err := grpc.Dial(target, timeout, grpc.WithBlock(), grpc.WithInsecure())
 	if err != nil {
 		exitWithError(err)
