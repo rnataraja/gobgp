@@ -114,6 +114,7 @@ const (
 	EC_SUBTYPE_OSPF_ROUTE_TYPE ExtendedCommunityAttrSubType = 0x06 // EC_TYPE: 0x03
 	EC_SUBTYPE_COLOR           ExtendedCommunityAttrSubType = 0x0B // EC_TYPE: 0x03
 	EC_SUBTYPE_ENCAPSULATION   ExtendedCommunityAttrSubType = 0x0C // EC_TYPE: 0x03
+    EC_SUBTYPE_COST_COMMUNITY  ExtendedCommunityAttrSubType = 0x01 // EC_TYPE: 0x03
 	EC_SUBTYPE_DEFAULT_GATEWAY ExtendedCommunityAttrSubType = 0x0D // EC_TYPE: 0x03
 
 	EC_SUBTYPE_ORIGIN_VALIDATION ExtendedCommunityAttrSubType = 0x00 // EC_TYPE: 0x43
@@ -5376,6 +5377,22 @@ func (v *DefaultOpaqueExtendedValue) String() string {
 	return fmt.Sprintf("%d", d)
 }
 
+type CostCommunityOpaqueExtendedValue struct {
+    Poi  uint8
+    Cost uint32
+}
+
+func (v *CostCommunityOpaqueExtendedValue) Serialize() ([]byte, error) {
+	buf := make([]byte, 8)
+    buf[1] = v.Poi
+	binary.BigEndian.PutUint32(buf[2:], v.Cost)
+	return buf,nil
+}
+
+func (v *CostCommunityOpaqueExtendedValue) String() string {
+	return fmt.Sprintf("%x.%x", v.Poi,v.Cost)
+}
+
 type ValidationState uint8
 
 const (
@@ -5486,6 +5503,11 @@ func (e *OpaqueExtended) DecodeFromBytes(data []byte) error {
 			e.Value = &EncapExtended{
 				TunnelType: t,
 			}
+		case EC_SUBTYPE_COST_COMMUNITY:
+            e.Value = &CostCommunityOpaqueExtendedValue {
+               Poi :  data[1],
+               Cost : binary.BigEndian.Uint32(data[2:]),
+            }
 		default:
 			e.Value = &DefaultOpaqueExtendedValue{
 				Value: data, //7byte
@@ -5497,6 +5519,11 @@ func (e *OpaqueExtended) DecodeFromBytes(data []byte) error {
 			e.Value = &ValidationExtended{
 				Value: ValidationState(data[6]),
 			}
+		case EC_SUBTYPE_COST_COMMUNITY:
+            e.Value = &CostCommunityOpaqueExtendedValue {
+               Poi :  data[1],
+               Cost : binary.BigEndian.Uint32(data[2:]),
+            }
 		default:
 			e.Value = &DefaultOpaqueExtendedValue{
 				Value: data, //7byte
