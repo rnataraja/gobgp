@@ -114,7 +114,7 @@ const (
 	EC_SUBTYPE_OSPF_ROUTE_TYPE ExtendedCommunityAttrSubType = 0x06 // EC_TYPE: 0x03
 	EC_SUBTYPE_COLOR           ExtendedCommunityAttrSubType = 0x0B // EC_TYPE: 0x03
 	EC_SUBTYPE_ENCAPSULATION   ExtendedCommunityAttrSubType = 0x0C // EC_TYPE: 0x03
-    EC_SUBTYPE_COST_COMMUNITY  ExtendedCommunityAttrSubType = 0x01 // EC_TYPE: 0x03
+	EC_SUBTYPE_COST_COMMUNITY  ExtendedCommunityAttrSubType = 0x01 // EC_TYPE: 0x03
 	EC_SUBTYPE_DEFAULT_GATEWAY ExtendedCommunityAttrSubType = 0x0D // EC_TYPE: 0x03
 
 	EC_SUBTYPE_ORIGIN_VALIDATION ExtendedCommunityAttrSubType = 0x00 // EC_TYPE: 0x43
@@ -125,10 +125,10 @@ const (
 	EC_SUBTYPE_FLOWSPEC_TRAFFIC_REMARK ExtendedCommunityAttrSubType = 0x09 // EC_TYPE: 0x80
 	EC_SUBTYPE_L2_INFO                 ExtendedCommunityAttrSubType = 0x0A // EC_TYPE: 0x80
 
-	EC_SUBTYPE_MAC_MOBILITY ExtendedCommunityAttrSubType = 0x00 // EC_TYPE: 0x06
-	EC_SUBTYPE_ESI_LABEL    ExtendedCommunityAttrSubType = 0x01 // EC_TYPE: 0x06
-	EC_SUBTYPE_ES_IMPORT    ExtendedCommunityAttrSubType = 0x02 // EC_TYPE: 0x06
-    EC_SUBTYPE_ROUTER_MAC 	ExtendedCommunityAttrSubType = 0x03 // EC_TYPE: 0x06
+	EC_SUBTYPE_MAC_MOBILITY  ExtendedCommunityAttrSubType = 0x00 // EC_TYPE: 0x06
+	EC_SUBTYPE_ESI_LABEL     ExtendedCommunityAttrSubType = 0x01 // EC_TYPE: 0x06
+	EC_SUBTYPE_ES_IMPORT     ExtendedCommunityAttrSubType = 0x02 // EC_TYPE: 0x06
+	EC_SUBTYPE_ROUTER_MAC    ExtendedCommunityAttrSubType = 0x03 // EC_TYPE: 0x06
 	EC_SUBTYPE_UUID_BASED_RT ExtendedCommunityAttrSubType = 0x11
 )
 
@@ -5511,19 +5511,22 @@ func (v *DefaultOpaqueExtendedValue) String() string {
 }
 
 type CostCommunityOpaqueExtendedValue struct {
-    Poi  uint8
-    Cost uint32
+	Poi     uint8
+	Comm_id uint8
+	Cost    uint32
 }
 
 func (v *CostCommunityOpaqueExtendedValue) Serialize() ([]byte, error) {
-	buf := make([]byte, 8)
-    buf[1] = v.Poi
-	binary.BigEndian.PutUint32(buf[2:], v.Cost)
-	return buf,nil
+	buf := make([]byte, 7)
+	buf[0] = byte(EC_SUBTYPE_COST_COMMUNITY)
+	buf[1] = v.Poi
+	buf[2] = v.Comm_id
+	binary.BigEndian.PutUint32(buf[3:], v.Cost)
+	return buf, nil
 }
 
 func (v *CostCommunityOpaqueExtendedValue) String() string {
-	return fmt.Sprintf("%x.%x", v.Poi,v.Cost)
+	return fmt.Sprintf("%x:%x:%x", v.Poi, v.Comm_id, v.Cost)
 }
 
 type ValidationState uint8
@@ -5637,10 +5640,11 @@ func (e *OpaqueExtended) DecodeFromBytes(data []byte) error {
 				TunnelType: t,
 			}
 		case EC_SUBTYPE_COST_COMMUNITY:
-            e.Value = &CostCommunityOpaqueExtendedValue {
-               Poi :  data[1],
-               Cost : binary.BigEndian.Uint32(data[2:]),
-            }
+			e.Value = &CostCommunityOpaqueExtendedValue{
+				Poi:     data[1],
+				Comm_id: data[2],
+				Cost:    binary.BigEndian.Uint32(data[3:]),
+			}
 		default:
 			e.Value = &DefaultOpaqueExtendedValue{
 				Value: data, //7byte
@@ -5653,10 +5657,11 @@ func (e *OpaqueExtended) DecodeFromBytes(data []byte) error {
 				Value: ValidationState(data[6]),
 			}
 		case EC_SUBTYPE_COST_COMMUNITY:
-            e.Value = &CostCommunityOpaqueExtendedValue {
-               Poi :  data[1],
-               Cost : binary.BigEndian.Uint32(data[2:]),
-            }
+			e.Value = &CostCommunityOpaqueExtendedValue{
+				Poi:     data[0],
+				Comm_id: data[1],
+				Cost:    binary.BigEndian.Uint32(data[2:]),
+			}
 		default:
 			e.Value = &DefaultOpaqueExtendedValue{
 				Value: data, //7byte
@@ -5863,7 +5868,7 @@ func NewMacMobilityExtended(seq uint32, isSticky bool) *MacMobilityExtended {
 }
 
 type RouterMacExtended struct {
-	MacAddress       net.HardwareAddr
+	MacAddress net.HardwareAddr
 }
 
 func (e *RouterMacExtended) Serialize() ([]byte, error) {
@@ -5881,23 +5886,22 @@ func (e *RouterMacExtended) String() string {
 }
 
 func (e *RouterMacExtended) GetTypes() (ExtendedCommunityAttrType, ExtendedCommunityAttrSubType) {
-	return EC_TYPE_EVPN, EC_SUBTYPE_ROUTER_MAC 
+	return EC_TYPE_EVPN, EC_SUBTYPE_ROUTER_MAC
 }
 
 func (e *RouterMacExtended) MarshalJSON() ([]byte, error) {
 	t, s := e.GetTypes()
 	return json.Marshal(struct {
-		Type     ExtendedCommunityAttrType    `json:"type"`
-		Subtype  ExtendedCommunityAttrSubType `json:"subtype"`
+		Type    ExtendedCommunityAttrType    `json:"type"`
+		Subtype ExtendedCommunityAttrSubType `json:"subtype"`
 
-		MacAddress net.HardwareAddr	      `json:"macAddress"`
+		MacAddress net.HardwareAddr `json:"macAddress"`
 	}{
-		Type:     t,
-		Subtype:  s,
+		Type:       t,
+		Subtype:    s,
 		MacAddress: e.MacAddress,
 	})
 }
-
 
 func parseEvpnExtended(data []byte) (ExtendedCommunityInterface, error) {
 	if ExtendedCommunityAttrType(data[0]) != EC_TYPE_EVPN {
@@ -5932,7 +5936,7 @@ func parseEvpnExtended(data []byte) (ExtendedCommunityInterface, error) {
 	case EC_SUBTYPE_ROUTER_MAC:
 		mac := net.HardwareAddr(data[2:8])
 		return &RouterMacExtended{
-		 	MacAddress: mac,
+			MacAddress: mac,
 		}, nil
 	}
 	return nil, NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST, nil, fmt.Sprintf("unknown evpn subtype: %d", subType))
@@ -7533,11 +7537,9 @@ func (e *MacMobilityExtended) Flat() map[string]string {
 	return map[string]string{}
 }
 
-
 func (e *RouterMacExtended) Flat() map[string]string {
 	return map[string]string{}
 }
-
 
 func (e *TrafficRateExtended) Flat() map[string]string {
 	return map[string]string{}
