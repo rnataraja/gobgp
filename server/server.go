@@ -28,7 +28,7 @@ import (
 	"github.com/osrg/gobgp/config"
 	"github.com/osrg/gobgp/packet/bgp"
 	"github.com/osrg/gobgp/table"
-	"github.com/satori/go.uuid"
+	"gopkg.in/satori/go.uuid.v1"
 )
 
 type TCPListener struct {
