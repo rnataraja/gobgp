@@ -1788,6 +1788,112 @@ func (er *EVPNEthernetAutoDiscoveryRoute) rd() RouteDistinguisherInterface {
 	return er.RD
 }
 
+type EVPNSelectiveMulticastEthernetTagRoute struct {
+	RD   RouteDistinguisherInterface
+	ETag uint32
+	MSL  uint8
+	MSA  net.HardwareAddr
+	MGL  uint8
+	MGA  net.HardwareAddr
+	ORL  uint8
+	ORA  net.HardwareAddr
+}
+
+func (er *EVPNSelectiveMulticastEthernetTagRoute) DecodeFromBytes(data []byte) error {
+	er.RD = GetRouteDistinguisher(data)
+
+	data = data[er.RD.Len():]
+	er.ETag = binary.BigEndian.Uint32(data[0:4])
+	data = data[4:]
+
+	er.MSL = data[0]
+	data = data[1:]
+	er.MSA = net.HardwareAddr(data[:er.MSL/8])
+	data = data[er.MSL/8:]
+
+	er.MGL = data[0]
+	data = data[1:]
+	er.MGA = net.HardwareAddr(data[:er.MGL/8])
+	data = data[er.MGL/8:]
+
+	er.ORL = data[0]
+	data = data[1:]
+	er.ORA = net.HardwareAddr(data[:er.ORL/8])
+	return nil
+}
+
+func (er *EVPNSelectiveMulticastEthernetTagRoute) Serialize() ([]byte, error) {
+	var buf []byte
+	var err error
+	if er.RD != nil {
+		buf, err = er.RD.Serialize()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		buf = make([]byte, 8)
+	}
+
+	tbuf := make([]byte, 4)
+	binary.BigEndian.PutUint32(tbuf, er.ETag)
+	buf = append(buf, tbuf...)
+
+	bbuf := new(bytes.Buffer)
+
+	buf = append(buf, byte(er.MSL/8))
+	err = binary.Write(bbuf, binary.BigEndian, er.MSA)
+	if err != nil {
+		return buf, err
+	}
+	buf = append(buf, bbuf.Bytes()...)
+
+	buf = append(buf, byte(er.MGL/8))
+	err = binary.Write(bbuf, binary.BigEndian, er.MGA)
+	if err != nil {
+		return buf, err
+	}
+	buf = append(buf, bbuf.Bytes()...)
+
+	buf = append(buf, byte(er.ORL/8))
+	err = binary.Write(bbuf, binary.BigEndian, er.ORA)
+	if err != nil {
+		return buf, err
+	}
+	buf = append(buf, bbuf.Bytes()...)
+
+	return buf, nil
+}
+
+func (er *EVPNSelectiveMulticastEthernetTagRoute) String() string {
+	return fmt.Sprintf("[type:multicast][rd:%s][etag:%d][msl:%d][msa:%s][mgl:%d][mga:%s][orl:%d][ora:%s]", er.RD, er.ETag, er.MSL, er.MSA.String(), er.MGL, er.MGA.String(), er.ORL, er.ORA.String())
+}
+
+func (er *EVPNSelectiveMulticastEthernetTagRoute) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		RD   RouteDistinguisherInterface `json:"rd"`
+		Etag uint32                      `json:"etag"`
+		MSL  uint8                       `json:"msl"`
+		MSA  string                      `json:"msa"`
+		MGL  uint8                       `json:"mgl"`
+		MGA  string                      `json:"mga"`
+		ORL  uint8                       `json:"orl"`
+		ORA  string                      `json:"ora"`
+	}{
+		RD:   er.RD,
+		Etag: er.ETag,
+		MSL:  er.MSL,
+		MSA:  er.MSA.String(),
+		MGL:  er.MGL,
+		MGA:  er.MGA.String(),
+		ORL:  er.ORL,
+		ORA:  er.ORA.String(),
+	})
+}
+
+func (er *EVPNSelectiveMulticastEthernetTagRoute) rd() RouteDistinguisherInterface {
+	return er.RD
+}
+
 type EVPNMacIPAdvertisementRoute struct {
 	RD               RouteDistinguisherInterface
 	ESI              EthernetSegmentIdentifier
@@ -2177,6 +2283,8 @@ func getEVPNRouteType(t uint8) (EVPNRouteTypeInterface, error) {
 		return &EVPNEthernetSegmentRoute{}, nil
 	case EVPN_IP_PREFIX:
 		return &EVPNIPPrefixRoute{}, nil
+	case EVPN_SELECTIVE_MULTICAST_ETHERNET_TAG:
+		return &EVPNSelectiveMulticastEthernetTagRoute{}, nil
 	}
 	return nil, NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST, nil, fmt.Sprintf("Unknown EVPN Route type: %d", t))
 }
@@ -2187,6 +2295,7 @@ const (
 	EVPN_INCLUSIVE_MULTICAST_ETHERNET_TAG   = 3
 	EVPN_ETHERNET_SEGMENT_ROUTE             = 4
 	EVPN_IP_PREFIX                          = 5
+	EVPN_SELECTIVE_MULTICAST_ETHERNET_TAG   = 6
 )
 
 type EVPNNLRI struct {
