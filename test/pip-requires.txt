@@ -6,3 +6,5 @@ netaddr
 nsenter
 docker-py
 ryu
+colored
+invoke

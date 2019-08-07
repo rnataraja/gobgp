@@ -13,19 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-from fabric.api import local
-from lib import base
-from lib.gobgp import *
-from lib.quagga import *
-from lib.exabgp import *
+
+
 import sys
-import os
 import time
-import nose
+import unittest
 import inspect
-from nose.tools import *
-from noseplugin import OptionParser, parser_option
+
+import nose
+
+from lib.noseplugin import OptionParser, parser_option
+
+from lib import base
+from lib.base import BGP_FSM_ESTABLISHED, local
+from lib.gobgp import GoBGPContainer
+from lib.exabgp import ExaBGPContainer
 
 
 counter = 1
@@ -39,7 +41,7 @@ def register_scenario(cls):
 
 
 def lookup_scenario(name):
-    for value in _SCENARIOS.values():
+    for value in list(_SCENARIOS.values()):
         if value.__name__ == name:
             return value
     return None
@@ -102,11 +104,13 @@ class MalformedMpReachNlri(object):
         g1 = env.g1
         e1 = env.e1
         e2 = env.e2
+
         def f():
             for line in e1.log().split('\n'):
                 if 'UPDATE message error / Attribute Flags Error / 0x600E0411223344' in line:
                     return True
             return False
+
         wait_for(f)
         # check e2 is still established
         g1.wait_for(BGP_FSM_ESTABLISHED, e2)
@@ -144,11 +148,13 @@ class MalformedMpUnReachNlri(object):
         g1 = env.g1
         e1 = env.e1
         e2 = env.e2
+
         def f():
             for line in e1.log().split('\n'):
                 if 'UPDATE message error / Attribute Flags Error / 0x600F0411223344' in line:
                     return True
             return False
+
         wait_for(f)
         # check e2 is still established
         g1.wait_for(BGP_FSM_ESTABLISHED, e2)
@@ -193,11 +199,13 @@ class MalformedAsPath(object):
         g1 = env.g1
         e1 = env.e1
         e2 = env.e2
+
         def f():
             for line in e1.log().split('\n'):
                 if 'UPDATE message error / Attribute Flags Error / 0x60020411223344' in line:
                     return True
             return False
+
         wait_for(f)
         # check e2 is still established
         g1.wait_for(BGP_FSM_ESTABLISHED, e2)
@@ -235,11 +243,13 @@ class MalformedAs4Path(object):
         g1 = env.g1
         e1 = env.e1
         e2 = env.e2
+
         def f():
             for line in e1.log().split('\n'):
                 if 'UPDATE message error / Attribute Flags Error / 0x60110411223344' in line:
                     return True
             return False
+
         wait_for(f)
         # check e2 is still established
         g1.wait_for(BGP_FSM_ESTABLISHED, e2)
@@ -284,11 +294,13 @@ class MalformedNexthop(object):
         g1 = env.g1
         e1 = env.e1
         e2 = env.e2
+
         def f():
             for line in e1.log().split('\n'):
                 if 'UPDATE message error / Attribute Flags Error / 0x600E08010110FFFFFF0000' in line:
                     return True
             return False
+
         wait_for(f)
         # check e2 is still established
         g1.wait_for(BGP_FSM_ESTABLISHED, e2)
@@ -333,11 +345,13 @@ class MalformedRouteFamily(object):
         g1 = env.g1
         e1 = env.e1
         e2 = env.e2
+
         def f():
             for line in e1.log().split('\n'):
                 if 'UPDATE message error / Attribute Flags Error / 0x600E150002011020010DB800000000000000000000000100' in line:
                     return True
             return False
+
         wait_for(f)
         # check e2 is still established
         g1.wait_for(BGP_FSM_ESTABLISHED, e2)
@@ -382,11 +396,13 @@ class MalformedAsPathSegmentLengthInvalid(object):
         g1 = env.g1
         e1 = env.e1
         e2 = env.e2
+
         def f():
             for line in e1.log().split('\n'):
                 if 'UPDATE message error / Malformed AS_PATH / 0x4002040202FFDC' in line:
                     return True
             return False
+
         wait_for(f)
         # check e2 is still established
         g1.wait_for(BGP_FSM_ESTABLISHED, e2)
@@ -426,11 +442,13 @@ class MalformedNexthopLoopbackAddr(object):
         g1 = env.g1
         e1 = env.e1
         e2 = env.e2
+
         def f():
             for line in e1.log().split('\n'):
                 if 'UPDATE message error / Invalid NEXT_HOP Attribute / 0x4003047F000001' in line:
                     return True
             return False
+
         wait_for(f)
         # check e2 is still established
         g1.wait_for(BGP_FSM_ESTABLISHED, e2)
@@ -473,11 +491,13 @@ class MalformedOriginType(object):
         g1 = env.g1
         e1 = env.e1
         e2 = env.e2
+
         def f():
             for line in e1.log().split('\n'):
                 if 'UPDATE message error / Invalid ORIGIN Attribute / 0x40010104' in line:
                     return True
             return False
+
         wait_for(f)
         # check e2 is still established
         g1.wait_for(BGP_FSM_ESTABLISHED, e2)
@@ -489,7 +509,7 @@ class MalformedOriginType(object):
         lookup_scenario("MalformedOriginType").check(env)
 
 
-class TestGoBGPBase():
+class TestGoBGPBase(unittest.TestCase):
 
     wait_per_retry = 5
     retry_limit = 10
@@ -501,14 +521,14 @@ class TestGoBGPBase():
         cls.parser_option = parser_option
         cls.executors = []
         if idx == 0:
-            print 'unset test-index. run all test sequential'
-            for _, v in _SCENARIOS.items():
+            print('unset test-index. run all test sequential')
+            for _, v in list(_SCENARIOS.items()):
                 for k, m in inspect.getmembers(v, inspect.isfunction):
                     if k == 'executor':
                         cls.executor = m
                 cls.executors.append(cls.executor)
         elif idx not in _SCENARIOS:
-            print 'invalid test-index. # of scenarios: {0}'.format(len(_SCENARIOS))
+            print('invalid test-index. # of scenarios: {0}'.format(len(_SCENARIOS)))
             sys.exit(1)
         else:
             for k, m in inspect.getmembers(_SCENARIOS[idx], inspect.isfunction):
@@ -520,14 +540,11 @@ class TestGoBGPBase():
         for e in self.executors:
             yield e
 
-            
+
 if __name__ == '__main__':
-    if os.geteuid() is not 0:
-        print "you are not root."
-        sys.exit(1)
     output = local("which docker 2>&1 > /dev/null ; echo $?", capture=True)
     if int(output) is not 0:
-        print "docker not found"
+        print("docker not found")
         sys.exit(1)
 
     nose.main(argv=sys.argv, addplugins=[OptionParser()],

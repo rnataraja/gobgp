@@ -1,3 +1,5 @@
+#!/usr/bin/env sh
+
 # renew GOPATH
 rm -rf /usr/local/jenkins/{bin,pkg,src}
 mkdir /usr/local/jenkins/{bin,pkg,src}
@@ -14,7 +16,7 @@ if [ "${BUILD_TAG}" != "" ]; then
     sudo sh -c ": > /var/log/upstart/docker.log"
 fi
 
-rm -r ${WS}/nosetest*.xml
+rm -f ${WS}/nosetest*.xml
 cp -r ../workspace $GOBGP
 pwd
 cd $GOBGP
@@ -31,7 +33,7 @@ do
 done
 
 sudo docker rmi $GOBGP_IMAGE
-sudo fab -f $GOBGP/test/lib/base.py make_gobgp_ctn:tag=$GOBGP_IMAGE
+sudo fab2 -r $GOBGP/test/lib make-gobgp-ctn
 [ "$?" != 0 ] && exit "$?"
 
 cd $GOBGP/gobgpd

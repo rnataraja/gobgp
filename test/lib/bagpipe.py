@@ -13,7 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from base import *
+
+from lib.base import (
+    BGPContainer,
+    CmdBuffer,
+    yellow,
+    local,
+)
 
 
 class BagpipeContainer(BGPContainer):
@@ -41,7 +47,7 @@ class BagpipeContainer(BGPContainer):
         c << '[BGP]'
         if len(self.ip_addrs) > 0:
             c << 'local_address={0}'.format(self.ip_addrs[0][1].split('/')[0])
-        for peer, info in self.peers.iteritems():
+        for info in list(self.peers.values()):
             c << 'peers={0}'.format(info['neigh_addr'].split('/')[0])
         c << 'my_as={0}'.format(self.asn)
         c << 'enable_rtc=True'
@@ -54,7 +60,7 @@ class BagpipeContainer(BGPContainer):
         c << 'dataplane_driver = DummyDataplaneDriver'
 
         with open('{0}/bgp.conf'.format(self.config_dir), 'w') as f:
-            print colors.yellow(str(c))
+            print(yellow(str(c)))
             f.writelines(str(c))
 
     def reload_config(self):

@@ -1,51 +1,61 @@
 # GoBGP: BGP implementation in Go
 
 [![Build Status](https://travis-ci.org/osrg/gobgp.svg?branch=master)](https://travis-ci.org/osrg/gobgp/builds)
-[![Slack Status](https://slackin-gobgp.mybluemix.net/badge.svg)](https://slackin-gobgp.mybluemix.net/)
+[![Slack Status](https://slackin-gobgp.now.sh/badge.svg)](https://slackin-gobgp.now.sh/)
 
 GoBGP is an open source BGP implementation designed from scratch for
 modern environment and implemented in a modern programming language,
 [the Go Programming Language](http://golang.org/).
 
-## Getting started
+----
 
-Installing GoBGP is quite easy (only two commands!):
+## Install
 
-```bash
-$ go get github.com/osrg/gobgp/gobgpd
-$ go get github.com/osrg/gobgp/gobgp
-```
-
-No dependency hell (library, package, etc) thanks to Go.
+Try [a binary release](https://github.com/osrg/gobgp/releases/latest).
 
 ## Documentation
 
 ### Using GoBGP
- * [Getting Started](https://github.com/osrg/gobgp/blob/master/docs/sources/getting-started.md)
- * CLI
-  * [Typical operation examples](https://github.com/osrg/gobgp/blob/master/docs/sources/cli-operations.md)
-  * [Complete syntax](https://github.com/osrg/gobgp/blob/master/docs/sources/cli-command-syntax.md)
- * [Route Server](https://github.com/osrg/gobgp/blob/master/docs/sources/route-server.md)
- * [Route Reflector](https://github.com/osrg/gobgp/blob/master/docs/sources/route-reflector.md)
- * [Policy](https://github.com/osrg/gobgp/blob/master/docs/sources/policy.md)
- * [FIB manipulation](https://github.com/osrg/gobgp/blob/master/docs/sources/zebra.md)
- * [MRT](https://github.com/osrg/gobgp/blob/master/docs/sources/mrt.md)
- * [BMP](https://github.com/osrg/gobgp/blob/master/docs/sources/bmp.md)
- * [EVPN](https://github.com/osrg/gobgp/blob/master/docs/sources/evpn.md)
- * [Flowspec](https://github.com/osrg/gobgp/blob/master/docs/sources/flowspec.md)
- * [RPKI](https://github.com/osrg/gobgp/blob/master/docs/sources/rpki.md)
- * [Managing GoBGP with your favorite language](https://github.com/osrg/gobgp/blob/master/docs/sources/grpc-client.md)
- * [Using GoBGP as a Go Native BGP library](https://github.com/osrg/gobgp/blob/master/docs/sources/lib.md)
- * [Graceful Restart](https://github.com/osrg/gobgp/blob/master/docs/sources/graceful-restart.md)
- 
+
+- [Getting Started](docs/sources/getting-started.md)
+- CLI
+  - [Typical operation examples](docs/sources/cli-operations.md)
+  - [Complete syntax](docs/sources/cli-command-syntax.md)
+- [Route Server](docs/sources/route-server.md)
+- [Route Reflector](docs/sources/route-reflector.md)
+- [Policy](docs/sources/policy.md)
+- Zebra Integration
+  - [FIB manipulation](docs/sources/zebra.md)
+  - [Equal Cost Multipath Routing](docs/sources/zebra-multipath.md)
+- [MRT](docs/sources/mrt.md)
+- [BMP](docs/sources/bmp.md)
+- [EVPN](docs/sources/evpn.md)
+- [Flowspec](docs/sources/flowspec.md)
+- [RPKI](docs/sources/rpki.md)
+- [Managing GoBGP with your favorite language with gRPC](docs/sources/grpc-client.md)
+- Go Native BGP Library
+  - [Basics](docs/sources/lib.md)
+  - [BGP-LS](docs/sources/lib-ls.md)
+- [Graceful Restart](docs/sources/graceful-restart.md)
+- [Additional Paths](docs/sources/add-paths.md)
+- [Peer Group](docs/sources/peer-group.md)
+- [Dynamic Neighbor](docs/sources/dynamic-neighbor.md)
+- [eBGP Multihop](docs/sources/ebgp-multihop.md)
+- [TTL Security](docs/sources/ttl-security.md)
+- Data Center Networking
+  - [Unnumbered BGP](docs/sources/unnumbered-bgp.md)
+
+### Externals
+
+- [Tutorial: Using GoBGP as an IXP connecting router](http://www.slideshare.net/shusugimoto1986/tutorial-using-gobgp-as-an-ixp-connecting-router)
+
 ## Community, discussion and support
 
-We have the [Slack](https://slackin-gobgp.mybluemix.net/) and [mailing
-list](https://lists.sourceforge.net/lists/listinfo/gobgp-devel) for
-questions, discussion, suggestions, etc.
+We have the [Slack](https://slackin-gobgp.now.sh/) for questions, discussion, suggestions, etc.
 
 You have code or documentation for GoBGP? Awesome! Send a pull
-request. No CLA, board members, governance, or other mess.
+request. No CLA, board members, governance, or other mess. See [`BUILD.md`](BUILD.md) for info on
+code contributing.
 
 ## Licensing
 

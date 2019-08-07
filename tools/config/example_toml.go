@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/BurntSushi/toml"
-	"github.com/osrg/gobgp/config"
+	"github.com/osrg/gobgp/internal/pkg/config"
 )
 
 func main() {
@@ -156,10 +157,7 @@ func policy() config.RoutingPolicy {
 			},
 		},
 		Actions: config.Actions{
-			RouteDisposition: config.RouteDisposition{
-				AcceptRoute: false,
-				RejectRoute: true,
-			},
+			RouteDisposition: "reject-route",
 			BgpActions: config.BgpActions{
 				SetCommunity: config.SetCommunity{
 					SetCommunityMethod: config.SetCommunityMethod{

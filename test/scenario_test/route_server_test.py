@@ -13,16 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-from fabric.api import local
-from lib import base
-from lib.gobgp import *
-from lib.quagga import *
+
+
 import sys
-import os
 import time
+import unittest
+
 import nose
-from noseplugin import OptionParser, parser_option
+
+from lib.noseplugin import OptionParser, parser_option
+
+from lib import base
+from lib.base import (
+    BGP_FSM_ACTIVE,
+    BGP_FSM_ESTABLISHED,
+    local,
+)
+from lib.gobgp import GoBGPContainer
+from lib.quagga import QuaggaBGPContainer
 
 
 class GoBGPTestBase(unittest.TestCase):
@@ -39,34 +47,34 @@ class GoBGPTestBase(unittest.TestCase):
                             ctn_image_name=gobgp_ctn_image_name,
                             log_level=parser_option.gobgp_log_level)
 
-        rs_clients = [QuaggaBGPContainer(name='q{0}'.format(i+1), asn=65001+i,
-                      router_id='192.168.0.{0}'.format(i+2))
-                      for i in range(3)]
+        rs_clients = [
+            QuaggaBGPContainer(name='q{0}'.format(i + 1), asn=(65001 + i),
+                               router_id='192.168.0.{0}'.format(i + 2))
+            for i in range(3)]
         ctns = [g1] + rs_clients
         q1 = rs_clients[0]
         q2 = rs_clients[1]
         q3 = rs_clients[2]
 
-        # advertise a route from route-server-clients
-        routes = []
-        for idx, rs_client in enumerate(rs_clients):
-            route = '10.0.{0}.0/24'.format(idx+1)
-            rs_client.add_route(route)
-            routes.append(route)
-
         initial_wait_time = max(ctn.run() for ctn in ctns)
-
         time.sleep(initial_wait_time)
 
         for rs_client in rs_clients:
             g1.add_peer(rs_client, is_rs_client=True, passwd='passwd', passive=True, prefix_limit=10)
             rs_client.add_peer(g1, passwd='passwd')
 
+        # advertise a route from route-server-clients
+        routes = []
+        for idx, rs_client in enumerate(rs_clients):
+            route = '10.0.{0}.0/24'.format(idx + 1)
+            rs_client.add_route(route)
+            routes.append(route)
+
         cls.gobgp = g1
         cls.quaggas = {'q1': q1, 'q2': q2, 'q3': q3}
 
     def check_gobgp_local_rib(self):
-        for rs_client in self.quaggas.itervalues():
+        for rs_client in self.quaggas.values():
             done = False
             for _ in range(self.retry_limit):
                 if done:
@@ -76,13 +84,13 @@ class GoBGPTestBase(unittest.TestCase):
 
                 state = self.gobgp.get_neighbor_state(rs_client)
                 self.assertEqual(state, BGP_FSM_ESTABLISHED)
-                if len(local_rib) < len(self.quaggas)-1:
+                if len(local_rib) < (len(self.quaggas) - 1):
                     time.sleep(self.wait_per_retry)
                     continue
 
-                self.assertTrue(len(local_rib) == (len(self.quaggas)-1))
+                self.assertEqual(len(local_rib), (len(self.quaggas) - 1))
 
-                for c in self.quaggas.itervalues():
+                for c in self.quaggas.values():
                     if rs_client != c:
                         for r in c.routes:
                             self.assertTrue(r in local_rib)
@@ -91,10 +99,10 @@ class GoBGPTestBase(unittest.TestCase):
             if done:
                 continue
             # should not reach here
-            self.assertTrue(False)
+            raise AssertionError
 
     def check_rs_client_rib(self):
-        for rs_client in self.quaggas.itervalues():
+        for rs_client in self.quaggas.values():
             done = False
             for _ in range(self.retry_limit):
                 if done:
@@ -105,9 +113,9 @@ class GoBGPTestBase(unittest.TestCase):
                     time.sleep(self.wait_per_retry)
                     continue
 
-                self.assertTrue(len(global_rib) == len(self.quaggas))
+                self.assertEqual(len(global_rib), len(self.quaggas))
 
-                for c in self.quaggas.itervalues():
+                for c in self.quaggas.values():
                     for r in c.routes:
                         self.assertTrue(r in global_rib)
 
@@ -115,11 +123,11 @@ class GoBGPTestBase(unittest.TestCase):
             if done:
                 continue
             # should not reach here
-            self.assertTrue(False)
+            raise AssertionError
 
     # test each neighbor state is turned establish
     def test_01_neighbor_established(self):
-        for q in self.quaggas.itervalues():
+        for q in self.quaggas.values():
             self.gobgp.wait_for(expected_state=BGP_FSM_ESTABLISHED, peer=q)
 
     # check advertised routes are stored in route-server's local-rib
@@ -129,7 +137,7 @@ class GoBGPTestBase(unittest.TestCase):
     # check gobgp's global rib. when configured as route-server, global rib
     # must be empty
     def test_03_check_gobgp_global_rib(self):
-        self.assertTrue(len(self.gobgp.get_global_rib()) == 0)
+        self.assertEqual(len(self.gobgp.get_global_rib()), 0)
 
     # check routes are properly advertised to route-server-client
     def test_04_check_rs_clients_rib(self):
@@ -139,14 +147,14 @@ class GoBGPTestBase(unittest.TestCase):
     def test_05_add_rs_client(self):
         q4 = QuaggaBGPContainer(name='q4', asn=65004, router_id='192.168.0.5')
         self.quaggas['q4'] = q4
+        initial_wait_time = q4.run()
+        time.sleep(initial_wait_time)
+
+        self.gobgp.add_peer(q4, is_rs_client=True)
+        q4.add_peer(self.gobgp)
 
         route = '10.0.4.0/24'
         q4.add_route(route)
-
-        initial_wait_time = q4.run()
-        time.sleep(initial_wait_time)
-        self.gobgp.add_peer(q4, is_rs_client=True)
-        q4.add_peer(self.gobgp)
 
         self.gobgp.wait_for(expected_state=BGP_FSM_ESTABLISHED, peer=q4)
 
@@ -208,21 +216,21 @@ class GoBGPTestBase(unittest.TestCase):
         self.gobgp.wait_for(expected_state=BGP_FSM_ESTABLISHED, peer=q3)
 
         def check_nexthop(target_prefix, expected_nexthop):
-            done = False
+            is_done = False
             for _ in range(self.retry_limit):
-                if done:
+                if is_done:
                     break
                 time.sleep(self.wait_per_retry)
                 for path in q1.get_global_rib():
                     if path['prefix'] == target_prefix:
-                        print "{0}'s nexthop is {1}".format(path['prefix'],
-                                                            path['nexthop'])
+                        print("{0}'s nexthop is {1}".format(path['prefix'],
+                                                            path['nexthop']))
                         n_addrs = [i[1].split('/')[0] for i in
                                    expected_nexthop.ip_addrs]
                         if path['nexthop'] in n_addrs:
-                            done = True
+                            is_done = True
                             break
-            return done
+            return is_done
 
         done = check_nexthop('10.0.6.0/24', q3)
         self.assertTrue(done)
@@ -241,12 +249,9 @@ class GoBGPTestBase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    if os.geteuid() is not 0:
-        print "you are not root."
-        sys.exit(1)
     output = local("which docker 2>&1 > /dev/null ; echo $?", capture=True)
     if int(output) is not 0:
-        print "docker not found"
+        print("docker not found")
         sys.exit(1)
 
     nose.main(argv=sys.argv, addplugins=[OptionParser()],

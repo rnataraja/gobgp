@@ -13,17 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-from fabric.api import local
-from lib import base
-from lib.gobgp import *
-from lib.quagga import *
-import sys
-import os
-import time
-import nose
-from noseplugin import OptionParser, parser_option
+
+
 from itertools import chain
+import sys
+import time
+import unittest
+
+import nose
+
+from lib.noseplugin import OptionParser, parser_option
+
+from lib import base
+from lib.base import (
+    BGP_FSM_ACTIVE,
+    BGP_FSM_ESTABLISHED,
+    LONG_LIVED_GRACEFUL_RESTART_TIME,
+    local,
+)
+from lib.gobgp import GoBGPContainer
 
 
 class GoBGPTestBase(unittest.TestCase):
@@ -81,42 +89,41 @@ class GoBGPTestBase(unittest.TestCase):
 
         time.sleep(1)
 
-        g2.graceful_restart()
+        g2.stop_gobgp()
         g1.wait_for(expected_state=BGP_FSM_ACTIVE, peer=g2)
 
         time.sleep(1)
 
-        self.assertTrue(len(g1.get_global_rib('10.0.0.0/24')) == 1)
+        self.assertEqual(len(g1.get_global_rib('10.0.0.0/24')), 1)
         # 10.10.0.0/24 is announced with no-llgr community
         # must not exist in the rib
-        self.assertTrue(len(g1.get_global_rib('10.10.0.0/24')) == 0)
+        self.assertEqual(len(g1.get_global_rib('10.10.0.0/24')), 0)
         for d in g1.get_global_rib():
             for p in d['paths']:
                 self.assertTrue(p['stale'])
 
-        self.assertTrue(len(g3.get_global_rib('10.0.0.0/24')) == 1)
+        self.assertEqual(len(g3.get_global_rib('10.0.0.0/24')), 1)
         # check llgr-stale community is added to 10.0.0.0/24
         r = g3.get_global_rib('10.0.0.0/24')[0]['paths'][0]
-        comms = list(chain.from_iterable([ attr['communities'] for attr in r['attrs'] if attr['type'] == 8]))
+        comms = list(chain.from_iterable([attr['communities'] for attr in r['attrs'] if attr['type'] == 8]))
         self.assertTrue(0xffff0006 in comms)
         # g4 is not llgr capable, llgr-stale route must be
         # withdrawn
-        self.assertTrue(len(g4.get_global_rib('10.0.0.0/24')) == 0)
+        self.assertEqual(len(g4.get_global_rib('10.0.0.0/24')), 0)
 
-        g2._start_gobgp(graceful_restart=True)
-        time.sleep(2)
+        g2.start_gobgp(graceful_restart=True)
         g2.local('gobgp global rib add 10.0.0.0/24')
         g2.local('gobgp global rib add 10.10.0.0/24')
 
     def test_03_neighbor_established(self):
         g1 = self.bgpds['g1']
         g2 = self.bgpds['g2']
-        g3 = self.bgpds['g3']
-        g4 = self.bgpds['g4']
+        # g3 = self.bgpds['g3']
+        # g4 = self.bgpds['g4']
         g1.wait_for(expected_state=BGP_FSM_ESTABLISHED, peer=g2)
         time.sleep(1)
-        self.assertTrue(len(g1.get_global_rib('10.0.0.0/24')) == 1)
-        self.assertTrue(len(g1.get_global_rib('10.10.0.0/24')) == 1)
+        self.assertEqual(len(g1.get_global_rib('10.0.0.0/24')), 1)
+        self.assertEqual(len(g1.get_global_rib('10.10.0.0/24')), 1)
         for d in g1.get_global_rib():
             for p in d['paths']:
                 self.assertFalse(p.get('stale', False))
@@ -130,40 +137,36 @@ class GoBGPTestBase(unittest.TestCase):
         time.sleep(1)
         # check g2's path is chosen as best and advertised
         rib = g3.get_global_rib('10.0.0.0/24')
-        self.assertTrue(len(rib) == 1)
+        self.assertEqual(len(rib), 1)
         self.assertTrue(g2.asn in rib[0]['paths'][0]['aspath'])
 
-        g2.graceful_restart()
+        g2.stop_gobgp()
         g1.wait_for(expected_state=BGP_FSM_ACTIVE, peer=g2)
 
         time.sleep(1)
-        
+
         # llgr_stale route depreference must happend
         # check g4's path is chosen as best and advertised
         rib = g3.get_global_rib('10.0.0.0/24')
-        self.assertTrue(len(rib) == 1)
+        self.assertEqual(len(rib), 1)
         self.assertTrue(g4.asn in rib[0]['paths'][0]['aspath'])
 
         # if no candidate exists, llgr_stale route will be chosen as best
         rib = g3.get_global_rib('10.10.0.0/24')
-        self.assertTrue(len(rib) == 1)
+        self.assertEqual(len(rib), 1)
         self.assertTrue(g2.asn in rib[0]['paths'][0]['aspath'])
 
-
     def test_05_llgr_restart_timer_expire(self):
-        time.sleep(35)
+        time.sleep(LONG_LIVED_GRACEFUL_RESTART_TIME + 5)
         g3 = self.bgpds['g3']
         rib = g3.get_global_rib('10.10.0.0/24')
-        self.assertTrue(len(rib) == 0)
+        self.assertEqual(len(rib), 0)
 
 
 if __name__ == '__main__':
-    if os.geteuid() is not 0:
-        print "you are not root."
-        sys.exit(1)
     output = local("which docker 2>&1 > /dev/null ; echo $?", capture=True)
     if int(output) is not 0:
-        print "docker not found"
+        print("docker not found")
         sys.exit(1)
 
     nose.main(argv=sys.argv, addplugins=[OptionParser()],
