@@ -29,6 +29,8 @@ import (
 	"strings"
 )
 
+var processMacOnlyAdvertisements = false
+
 type MarshallingOption struct {
 	AddPath map[RouteFamily]BGPAddPathMode
 }
@@ -171,6 +173,11 @@ const (
 	TUNNEL_TYPE_VXLAN_GRE   TunnelType = 12
 	TUNNEL_TYPE_MPLS_IN_UDP TunnelType = 13
 )
+
+// Enables/Disables processing of mac only advertisements for EVPNMacIPAdvertisementRoute
+func SetProcessMacOnly(allowMacOnly bool) {
+	processMacOnlyAdvertisements = allowMacOnly
+}
 
 func (p TunnelType) String() string {
 	switch p {
@@ -2557,6 +2564,9 @@ func (er *EVPNMacIPAdvertisementRoute) DecodeFromBytes(data []byte) error {
 		er.IPAddress = net.IP(data[0:((er.IPAddressLength) / 8)])
 	} else if er.IPAddressLength != 0 {
 		return NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST, nil, fmt.Sprintf("Invalid IP address length: %d", er.IPAddressLength))
+	} else if !processMacOnlyAdvertisements{
+		//TODO: Replace this error 
+		return NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST, nil, fmt.Sprintf("Process mac only advertisements is disabled."))
 	}
 	data = data[(er.IPAddressLength / 8):]
 	var label uint32
