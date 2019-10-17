@@ -8,8 +8,10 @@ require (
 	github.com/dgryski/go-farm v0.0.0-20171119141306-ac7624ea8da3
 	github.com/eapache/channels v1.1.0
 	github.com/eapache/queue v1.0.2 // indirect
+	github.com/fortytw2/leaktest v1.3.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.2 // indirect
 	github.com/golang/protobuf v1.0.0
+	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/hashicorp/hcl v0.0.0-20170509225359-392dba7d905e // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -17,9 +19,12 @@ require (
 	github.com/kr/pretty v0.0.0-20160823170715-cfb55aafdaf3
 	github.com/kr/text v0.0.0-20160504234017-7cafcd837844 // indirect
 	github.com/magiconair/properties v1.7.3 // indirect
+	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/mitchellh/mapstructure v0.0.0-20170523030023-d0303fe80992 // indirect
+	github.com/olivere/elastic v6.2.24+incompatible // indirect
 	github.com/pelletier/go-buffruneio v0.2.0 // indirect
 	github.com/pelletier/go-toml v1.0.0 // indirect
+	github.com/pkg/errors v0.8.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sirupsen/logrus v0.0.0-20170713114250-a3f95b5c4235
 	github.com/spf13/afero v0.0.0-20170217164146-9be650865eab // indirect
@@ -37,5 +42,8 @@ require (
 	google.golang.org/genproto v0.0.0-20170731182057-09f6ed296fc6 // indirect
 	google.golang.org/grpc v1.5.1
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
+	gopkg.in/olivere/elastic.v6 v6.2.24 // indirect
 	gopkg.in/yaml.v2 v2.0.0-20170721122051-25c4ec802a7d // indirect
 )
+
+go 1.13

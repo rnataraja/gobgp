@@ -749,6 +749,7 @@ func (s *BgpServer) toConfig(peer *peer, getAdvertised bool) *config.Neighbor {
 	}
 
 	remoteCap := make([]bgp.ParameterCapabilityInterface, 0, len(peerCapMap))
+	peer.fsm.lock.RLock()
 	for _, caps := range peerCapMap {
 		for _, m := range caps {
 			// need to copy all values here
@@ -757,6 +758,7 @@ func (s *BgpServer) toConfig(peer *peer, getAdvertised bool) *config.Neighbor {
 			remoteCap = append(remoteCap, c)
 		}
 	}
+	peer.fsm.lock.RUnlock()
 
 	conf.State.RemoteCapabilityList = remoteCap
 
