@@ -243,10 +243,6 @@ func main() {
 						log.Fatalf("failed to set global config: %s", err)
 					}
 
-					if c.Global.Config.AllowMacOnly != nil {
-						bgp.SetProcessMacOnly(*c.Global.Config.AllowMacOnly)
-					}
-
 					if newConfig.Zebra.Config.Enabled {
 						tps := c.Zebra.Config.RedistributeRouteTypeList
 						l := make([]string, 0, len(tps))

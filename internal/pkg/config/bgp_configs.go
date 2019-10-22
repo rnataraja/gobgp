@@ -4825,8 +4825,6 @@ type GlobalConfig struct {
 	// Local autonomous system number of the router.  Uses
 	// the 32-bit as-number type from the model in RFC 6991.
 	As uint32 `mapstructure:"as" json:"as,omitempty"`
-	// Process MAC only route 2 advertisements
-	AllowMacOnly *bool `mapstructure:"allow-mac-only" json:"allow-mac-only,omitempty"`
 	// original -> bgp:router-id
 	// bgp:router-id's original type is inet:ipv4-address.
 	// Router id of the router, expressed as an
