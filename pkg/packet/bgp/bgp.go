@@ -2566,7 +2566,7 @@ func (er *EVPNMacIPAdvertisementRoute) DecodeFromBytes(data []byte) error {
 		return NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST, nil, fmt.Sprintf("Invalid IP address length: %d", er.IPAddressLength))
 	} else if !processMacOnlyAdvertisements{
 		//TODO: Replace this error 
-		return NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST, nil, fmt.Sprintf("Process mac only advertisements is disabled."))
+		return NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_PROCESS_MAC_ONLY, nil, fmt.Sprintf("Process mac only advertisements is disabled."))
 	}
 	data = data[(er.IPAddressLength / 8):]
 	var label uint32
@@ -8392,6 +8392,7 @@ const (
 	BGP_ERROR_SUB_OPTIONAL_ATTRIBUTE_ERROR
 	BGP_ERROR_SUB_INVALID_NETWORK_FIELD
 	BGP_ERROR_SUB_MALFORMED_AS_PATH
+	BGP_ERROR_SUB_PROCESS_MAC_ONLY
 )
 
 // NOTIFICATION Error Subcode for BGP_ERROR_HOLD_TIMER_EXPIRED
