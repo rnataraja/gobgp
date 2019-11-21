@@ -975,13 +975,8 @@ func (h *fsmHandler) recvMessageWithError() (*fsmMsg, error) {
 
 	m, err := bgp.ParseBGPBody(hd, bodyBuf, options)
 	if err != nil {
-		bgpErr := err.(*bgp.MessageError)
-		if bgpErr.TypeCode == bgp.BGP_ERROR_UPDATE_MESSAGE_ERROR && bgpErr.SubTypeCode == bgp.BGP_ERROR_SUB_PROCESS_MAC_ONLY {
-			h.fsm.bgpMessageStateUpdate(bgp.BGP_MSG_KEEPALIVE, true)
-		} else {
-			handling = h.handlingError(m, err, useRevisedError)
-			h.fsm.bgpMessageStateUpdate(0, true)
-		}
+		handling = h.handlingError(m, err, useRevisedError)
+		h.fsm.bgpMessageStateUpdate(0, true)
 	} else {
 		h.fsm.bgpMessageStateUpdate(m.Header.Type, true)
 		err = bgp.ValidateBGPMessage(m)

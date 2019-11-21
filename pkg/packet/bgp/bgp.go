@@ -2564,9 +2564,6 @@ func (er *EVPNMacIPAdvertisementRoute) DecodeFromBytes(data []byte) error {
 		er.IPAddress = net.IP(data[0:((er.IPAddressLength) / 8)])
 	} else if er.IPAddressLength != 0 {
 		return NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_MALFORMED_ATTRIBUTE_LIST, nil, fmt.Sprintf("Invalid IP address length: %d", er.IPAddressLength))
-	} else if !processMacOnlyAdvertisements{
-		//TODO: Replace this error 
-		return NewMessageError(BGP_ERROR_UPDATE_MESSAGE_ERROR, BGP_ERROR_SUB_PROCESS_MAC_ONLY, nil, fmt.Sprintf("Process mac only advertisements is disabled."))
 	}
 	data = data[(er.IPAddressLength / 8):]
 	var label uint32
@@ -9635,11 +9632,22 @@ func (p *PathAttributeMpReachNLRI) DecodeFromBytes(data []byte, options ...*Mars
 		if err != nil {
 			return err
 		}
+		skip := false
+		if !processMacOnlyAdvertisements {
+			if evpn, ok := prefix.(*EVPNNLRI); ok {
+				if evpn.RouteType == EVPN_ROUTE_TYPE_MAC_IP_ADVERTISEMENT {
+					skip = evpn.RouteTypeData.(*EVPNMacIPAdvertisementRoute).IPAddressLength == 0
+				}
+			}
+		}
+
 		if prefix.Len(options...)+addpathLen > len(value) {
 			return NewMessageError(eCode, eSubCode, value, "prefix length is incorrect")
 		}
 		value = value[prefix.Len(options...)+addpathLen:]
-		p.Value = append(p.Value, prefix)
+		if !skip {
+			p.Value = append(p.Value, prefix)
+		}
 	}
 	return nil
 }
@@ -9812,8 +9820,20 @@ func (p *PathAttributeMpUnreachNLRI) DecodeFromBytes(data []byte, options ...*Ma
 		if prefix.Len(options...)+addpathLen > len(value) {
 			return NewMessageError(eCode, eSubCode, eData, "prefix length is incorrect")
 		}
+
+		skip := false
+		if !processMacOnlyAdvertisements {
+			if evpn, ok := prefix.(*EVPNNLRI); ok {
+				if evpn.RouteType == EVPN_ROUTE_TYPE_MAC_IP_ADVERTISEMENT {
+					skip = evpn.RouteTypeData.(*EVPNMacIPAdvertisementRoute).IPAddressLength == 0
+				}
+			}
+		}
+
 		value = value[prefix.Len(options...)+addpathLen:]
-		p.Value = append(p.Value, prefix)
+		if !skip {
+			p.Value = append(p.Value, prefix)
+		}
 	}
 	return nil
 }
